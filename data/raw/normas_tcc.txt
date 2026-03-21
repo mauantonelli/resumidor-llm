@@ -1,0 +1,61 @@
+NORMAS PARA ELABORAÇÃO DE TRABALHO DE CONCLUSÃO DE CURSO DO IFSP
+
+CAPÍTULO I - DISPOSIÇÕES GERAIS
+
+Art. 1º O Trabalho de Conclusão de Curso (TCC) é componente curricular obrigatório para a obtenção do diploma nos cursos superiores do Instituto Federal de São Paulo (IFSP), Campus São Carlos.
+
+Art. 2º O TCC consiste em um trabalho acadêmico que demonstre a capacidade do estudante de integrar os conhecimentos adquiridos ao longo do curso, aplicando metodologia científica adequada.
+
+Art. 3º O TCC pode assumir as seguintes modalidades:
+I - Monografia;
+II - Artigo científico;
+III - Relatório técnico-científico;
+IV - Projeto de desenvolvimento tecnológico;
+V - Outras modalidades aprovadas pelo colegiado do curso.
+
+CAPÍTULO II - DA ORIENTAÇÃO
+
+Art. 4º Todo estudante deverá ter um orientador, que será docente do IFSP.
+
+Art. 5º O orientador tem as seguintes atribuições:
+I - Auxiliar o estudante na definição do tema e na elaboração do projeto;
+II - Acompanhar o desenvolvimento do trabalho;
+III - Revisar e aprovar a versão final do TCC;
+IV - Participar da banca examinadora como presidente;
+V - Orientar no máximo 5 estudantes simultaneamente.
+
+Art. 6º É permitida a coorientação por profissional externo ao IFSP, desde que aprovada pelo colegiado do curso.
+
+CAPÍTULO III - DA ESTRUTURA DO TCC
+
+Art. 7º O TCC deve seguir as normas da ABNT e conter, no mínimo:
+I - Elementos pré-textuais: capa, folha de rosto, resumo em português, resumo em língua estrangeira, sumário;
+II - Elementos textuais: introdução, desenvolvimento (referencial teórico, metodologia, resultados e discussão), conclusão;
+III - Elementos pós-textuais: referências bibliográficas, apêndices e anexos (quando necessário).
+
+Art. 8º O TCC deve ter, no mínimo, 30 páginas de elementos textuais para monografia e 10 páginas para artigo científico.
+
+CAPÍTULO IV - DA BANCA EXAMINADORA
+
+Art. 9º A banca examinadora será composta por:
+I - O orientador, como presidente;
+II - Dois membros titulares;
+III - Um membro suplente.
+
+Art. 10º A defesa do TCC será pública e terá duração máxima de 60 minutos, sendo:
+I - Até 20 minutos para apresentação do estudante;
+II - Até 30 minutos para arguição da banca;
+III - Até 10 minutos para resposta do estudante.
+
+Art. 11º A avaliação do TCC considerará:
+I - Qualidade técnica e científica do trabalho;
+II - Apresentação oral;
+III - Domínio do tema;
+IV - Capacidade de argumentação;
+V - Formatação e redação.
+
+CAPÍTULO V - DOS PRAZOS
+
+Art. 12º O estudante deve entregar a versão final do TCC em até 30 dias após a defesa, incorporando as correções sugeridas pela banca.
+
+Art. 13º O TCC aprovado será depositado na biblioteca do campus e no repositório institucional do IFSP.

@@ -1,0 +1,78 @@
+POLÍTICA DE USO DOS LABORATÓRIOS DE INFORMÁTICA DO IFSP CAMPUS SÃO CARLOS
+
+1. OBJETIVO
+
+Esta política estabelece as regras para utilização dos laboratórios de informática do IFSP Campus São Carlos, visando garantir o bom funcionamento dos equipamentos e a segurança da rede institucional.
+
+2. HORÁRIO DE FUNCIONAMENTO
+
+Os laboratórios funcionam nos seguintes horários:
+- Segunda a sexta-feira: 7h30 às 22h30
+- Sábados: 8h às 12h (mediante agendamento)
+
+O uso fora do horário de aula está condicionado à disponibilidade e deve ser previamente agendado na coordenadoria de informática.
+
+3. REGRAS GERAIS DE USO
+
+3.1 Todos os usuários devem:
+- Identificar-se com login e senha institucional
+- Manter o laboratório limpo e organizado
+- Não consumir alimentos ou bebidas no laboratório
+- Desligar os equipamentos ao final do uso
+- Comunicar qualquer defeito ou problema ao responsável pelo laboratório
+
+3.2 É proibido:
+- Instalar software não autorizado nos computadores
+- Alterar configurações do sistema operacional
+- Acessar conteúdo impróprio ou ilegal
+- Utilizar os equipamentos para fins comerciais
+- Remover ou trocar periféricos dos computadores
+- Usar os computadores para mineração de criptomoedas
+
+4. SOFTWARE DISPONÍVEL
+
+Os laboratórios possuem os seguintes softwares instalados:
+- Sistemas operacionais: Windows 11 e Ubuntu Linux 22.04 (dual boot)
+- IDEs: Visual Studio Code, IntelliJ IDEA, Eclipse, NetBeans
+- Linguagens: Python 3.11, Java 17, C/C++ (GCC), Node.js 18
+- Ferramentas de ML/IA: Anaconda, Jupyter Notebook, TensorFlow, PyTorch
+- Banco de dados: MySQL, PostgreSQL, MongoDB
+- Ferramentas de escritório: LibreOffice
+- Navegadores: Firefox, Chrome
+- Outros: Git, Docker, VirtualBox
+
+5. REDE E INTERNET
+
+5.1 O acesso à internet é fornecido pela rede IFSP e está sujeito às políticas de uso da instituição.
+
+5.2 A rede Wi-Fi institucional (IFSP-Alunos) está disponível em todo o campus.
+
+5.3 O uso de VPN pessoal é permitido apenas para fins acadêmicos.
+
+5.4 O download de arquivos grandes (acima de 1GB) deve ser realizado em horários de menor utilização da rede.
+
+6. IMPRESSÃO
+
+6.1 O serviço de impressão está disponível nos laboratórios mediante créditos.
+6.2 Cada estudante tem direito a 50 páginas gratuitas por semestre.
+6.3 Impressões adicionais devem ser solicitadas na reprografia do campus.
+
+7. RESPONSABILIDADES
+
+7.1 A coordenadoria de informática é responsável pela manutenção e atualização dos equipamentos e softwares.
+
+7.2 Os professores responsáveis pelas aulas em laboratório devem zelar pelo uso adequado dos equipamentos durante suas aulas.
+
+7.3 O estudante é responsável pelos danos causados aos equipamentos por mau uso comprovado.
+
+8. PENALIDADES
+
+O descumprimento das regras pode resultar em:
+- Advertência verbal
+- Suspensão temporária do acesso aos laboratórios
+- Processo administrativo disciplinar
+- Ressarcimento de danos materiais
+
+9. DISPOSIÇÕES FINAIS
+
+Esta política é revisada anualmente pela coordenadoria de informática em conjunto com a direção do campus. Casos omissos serão resolvidos pela direção do campus.
