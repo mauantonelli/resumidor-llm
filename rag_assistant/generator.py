@@ -42,11 +42,21 @@ class RAGGenerator:
     ) -> str:
         prompt = self._build_prompt(query, context)
 
+        # GPT-2 (e afins) tem janela de posicoes limitada (n_positions).
+        # O prompt precisa ser truncado deixando espaco para os tokens
+        # gerados, senao prompt + max_new_tokens estoura o limite de
+        # posicoes e o embedding posicional lanca IndexError.
+        model_max = (
+            getattr(self.model.config, "n_positions", None)
+            or getattr(self.model.config, "max_position_embeddings", 1024)
+        )
+        max_input = max(1, model_max - self.max_new_tokens)
+
         inputs = self.tokenizer(
             prompt,
             return_tensors="pt",
             truncation=True,
-            max_length=1024,
+            max_length=max_input,
         )
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
         prompt_length = inputs["input_ids"].shape[1]
