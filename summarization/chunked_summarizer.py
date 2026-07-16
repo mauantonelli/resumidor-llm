@@ -34,6 +34,7 @@ class ChunkedSeq2SeqSummarizer:
         map_tokens: int = 100,
         overlap_tokens: int = 50,
         num_beams: int = 4,
+        num_beams_map: int = 1,
         max_niveis: int = 3,
         device: Optional[str] = None,
     ):
@@ -42,7 +43,13 @@ class ChunkedSeq2SeqSummarizer:
         self.max_summary_length = max_summary_length
         self.map_tokens = map_tokens
         self.overlap_tokens = overlap_tokens
+        # beam search no resumo FINAL; greedy (num_beams_map=1) nos resumos
+        # intermediarios de cada pedaco. Motivo: com beam em todos os pedacos o
+        # custo medido foi ~10 min por artigo (~5h no corpus), inviavel em CPU.
+        # Os resumos de pedaco sao artefatos internos — a saida final continua
+        # sendo decodificada por beam, como no Seq2SeqSummarizer.
         self.num_beams = num_beams
+        self.num_beams_map = num_beams_map
         self.max_niveis = max_niveis
         self.preprocessor = TextPreprocessor()
         self.loader = ModelLoader(device=device)
@@ -72,7 +79,9 @@ class ChunkedSeq2SeqSummarizer:
                 break
         return pedacos or [text]
 
-    def _resumir_um(self, text: str, max_new_tokens: int) -> str:
+    def _resumir_um(self, text: str, max_new_tokens: int, num_beams: Optional[int] = None) -> str:
+        if num_beams is None:
+            num_beams = self.num_beams
         inputs = self.tokenizer(
             text,
             return_tensors="pt",
@@ -84,7 +93,7 @@ class ChunkedSeq2SeqSummarizer:
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=max_new_tokens,
-                num_beams=self.num_beams,
+                num_beams=num_beams,
                 do_sample=False,
                 repetition_penalty=1.2,
             )
@@ -98,18 +107,25 @@ class ChunkedSeq2SeqSummarizer:
         if len(pedacos) == 1:
             return self._resumir_um(pedacos[0], self.max_summary_length)
 
-        # map
-        parciais = [self._resumir_um(p, self.map_tokens) for p in pedacos]
+        # map — greedy (intermediario)
+        parciais = [
+            self._resumir_um(p, self.map_tokens, num_beams=self.num_beams_map)
+            for p in pedacos
+        ]
         combinado = " ".join(parciais)
 
         # reduce hierarquico enquanto nao couber na janela do modelo
         nivel = 0
         while self._n_tokens(combinado) > self.max_input_length and nivel < self.max_niveis:
-            parciais = [self._resumir_um(p, self.map_tokens) for p in self._dividir(combinado)]
+            parciais = [
+                self._resumir_um(p, self.map_tokens, num_beams=self.num_beams_map)
+                for p in self._dividir(combinado)
+            ]
             combinado = " ".join(parciais)
             nivel += 1
 
-        return self._resumir_um(combinado, self.max_summary_length)
+        # resumo FINAL — beam search
+        return self._resumir_um(combinado, self.max_summary_length, num_beams=self.num_beams)
 
     def batch_summarize(self, texts: list[str], **kwargs) -> list[str]:
         return [self.generate_summary(text, **kwargs) for text in texts]

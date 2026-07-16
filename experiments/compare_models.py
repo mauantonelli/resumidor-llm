@@ -19,13 +19,60 @@ def _hash_corpus(texts: list[str]) -> str:
     return h.hexdigest()[:16]
 
 
+def _assinatura_metodo(model_name: str, config: dict) -> dict:
+    """Descreve o METODO de geracao (tipo + hiperparametros de decodificacao),
+    lendo os defaults das classes sem instanciar o modelo.
+
+    Serve para invalidar checkpoints quando o metodo muda: sem isso, trocar a
+    decodificacao e reaproveitar o checkpoint misturaria resumos gerados por
+    metodos diferentes no mesmo resultado.
+    """
+    from inspect import signature
+
+    tipo = config.get("type")
+    assin = {"tipo": tipo, "model_id": config.get("model_id")}
+
+    def _defaults(cls, chaves):
+        d = {
+            k: v.default
+            for k, v in signature(cls.__init__).parameters.items()
+            if v.default is not v.empty
+        }
+        return {k: d[k] for k in chaves if k in d}
+
+    if tipo == "extractive":
+        from summarization.extractive_summarizer import ExtractiveSummarizer
+        assin.update(_defaults(ExtractiveSummarizer, ["model_name", "num_sentences"]))
+    elif tipo == "seq2seq":
+        from summarization.seq2seq_summarizer import Seq2SeqSummarizer
+        assin.update(_defaults(Seq2SeqSummarizer,
+                               ["max_input_length", "max_summary_length", "num_beams"]))
+    elif tipo == "seq2seq_chunk":
+        from summarization.chunked_summarizer import ChunkedSeq2SeqSummarizer
+        assin.update(_defaults(ChunkedSeq2SeqSummarizer,
+                               ["max_input_length", "max_summary_length", "num_beams",
+                                "num_beams_map", "map_tokens", "overlap_tokens",
+                                "max_niveis"]))
+    else:
+        from summarization.summarizer import Summarizer
+        assin.update(_defaults(Summarizer, ["max_input_length", "max_summary_length"]))
+        assin["do_sample"] = False  # avaliacao usa greedy
+    return assin
+
+
+def _hash_metodo(assin: dict) -> str:
+    return hashlib.sha256(
+        json.dumps(assin, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()[:16]
+
+
 def _ckpt_path(checkpoint_dir: Optional[str], model_name: str) -> Optional[str]:
     if not checkpoint_dir:
         return None
     return os.path.join(checkpoint_dir, f"ckpt_{model_name.replace('/', '_')}.json")
 
 
-def _carregar_ckpt(path, corpus_hash):
+def _carregar_ckpt(path, corpus_hash, metodo_hash):
     if not path or not os.path.exists(path):
         return [], []
     try:
@@ -35,16 +82,20 @@ def _carregar_ckpt(path, corpus_hash):
         return [], []
     if d.get("corpus_hash") != corpus_hash:
         return [], []  # checkpoint de outro corpus: ignora
+    if d.get("metodo_hash") != metodo_hash:
+        print("  [ckpt] metodo mudou desde o checkpoint — descartando e refazendo")
+        return [], []  # decodificacao/hiperparametros mudaram: nao misturar
     return d.get("summaries", []), d.get("tempos", [])
 
 
-def _salvar_ckpt(path, corpus_hash, summaries, tempos):
+def _salvar_ckpt(path, corpus_hash, metodo_hash, assin, summaries, tempos):
     if not path:
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump({"corpus_hash": corpus_hash, "summaries": summaries,
+        json.dump({"corpus_hash": corpus_hash, "metodo_hash": metodo_hash,
+                   "metodo": assin, "summaries": summaries,
                    "tempos": tempos}, f, ensure_ascii=False)
     os.replace(tmp, path)  # escrita atomica: nao corrompe se morrer no meio
 
@@ -78,8 +129,10 @@ def gerar_resumos(model_name, config, texts, checkpoint_dir=None):
     e load + soma dos tempos de geracao (exclui pausas entre execucoes).
     """
     corpus_hash = _hash_corpus(texts)
+    assin = _assinatura_metodo(model_name, config)
+    metodo_hash = _hash_metodo(assin)
     path = _ckpt_path(checkpoint_dir, model_name)
-    summaries, tempos = _carregar_ckpt(path, corpus_hash)
+    summaries, tempos = _carregar_ckpt(path, corpus_hash, metodo_hash)
 
     if len(summaries) >= len(texts):
         print(f"\n  [ckpt] {model_name}: {len(texts)}/{len(texts)} ja concluido — "
@@ -103,7 +156,7 @@ def gerar_resumos(model_name, config, texts, checkpoint_dir=None):
         print(f"({dt:.1f}s)")
         summaries.append(resumo)
         tempos.append(dt)
-        _salvar_ckpt(path, corpus_hash, summaries, tempos)
+        _salvar_ckpt(path, corpus_hash, metodo_hash, assin, summaries, tempos)
 
     return summaries, load_time + float(sum(tempos))
 
