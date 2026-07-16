@@ -55,7 +55,8 @@ Nos modelos gerativos, a entrada é truncada em `max_input_length = 512` tokens.
 | GPT-2 | `gpt2` | Gerativa (abstrativa) |
 | DistilGPT-2 | `distilgpt2` | Gerativa (abstrativa) |
 | BERTimbau | `neuralmind/bert-base-portuguese-cased` | Extrativa |
-| PTT5-summ | `recogna-nlp/ptt5-base-summ` | Gerativa (abstrativa, PT) |
+| PTT5-summ | `recogna-nlp/ptt5-base-summ` | Gerativa (abstrativa, PT) — trunca a entrada |
+| PTT5-summ-chunk | `recogna-nlp/ptt5-base-summ` | Igual ao anterior, mas com chunking (lê o artigo inteiro) |
 
 **Gerativos (GPT-2, DistilGPT-2).** Prompt em português:
 
@@ -81,6 +82,27 @@ pré-processado é a entrada do encoder e a saída do decoder é o resumo (não 
 prompt a remover). Decodificação determinística por **beam search**
 (`num_beams=4`, `do_sample=False`, `repetition_penalty=1.2`).
 
+**Chunking hierárquico (PTT5-summ-chunk).** `summarization/chunked_summarizer.py`.
+Motivação: há uma **assimetria de cobertura** entre os modelos. O BERTimbau
+extrativo percorre *todas* as sentenças do artigo, enquanto o PTT5-summ e os
+modelos causais truncam a entrada em 512 tokens — ou seja, leem apenas o começo
+de artigos com mediana de ~4.815 palavras. O chunking remove essa desvantagem:
+
+1. *map*: divide o texto em janelas de 512 tokens (sobreposição de 50) e resume
+   cada uma em ~100 tokens;
+2. *reduce*: concatena os resumos parciais e resume de novo; se a concatenação
+   ainda exceder a janela, repete (até 3 níveis).
+
+Entra como **modelo separado**, ao lado do PTT5-summ, para que "truncar ×
+chunking" seja uma hipótese testável isolando uma variável — o mesmo `model_id`,
+a mesma referência, o mesmo corpus.
+
+> **Diferença de decodificação (registrada):** o resumo **final** usa beam search
+> (igual ao PTT5-summ), mas os resumos **intermediários** de cada pedaço usam
+> greedy. Com beam em todos os pedaços, o custo medido foi de ~10 min por artigo
+> (~5 h no corpus), inviável em CPU; com greedy no *map* caiu para ~24 s por
+> artigo. Os resumos de pedaço são artefatos internos, não a saída avaliada.
+
 > **LLaMA-2** está configurado em `summarization/model_loader.py`, mas ficou
 > **fora desta rodada** (acesso gated no Hugging Face + quantização 4-bit que
 > exige GPU/CUDA). Registrado como trabalho futuro.
@@ -105,15 +127,18 @@ número da tabela é 100% reproduzível.
 
 | Modelo | ROUGE-1 F | ROUGE-2 F | ROUGE-L F | Sim. semântica | Tempo (s) |
 |---|---|---|---|---|---|
-| GPT-2 | 0.0370 | 0.0000 | 0.0277 | 0.3896 | 104.7 |
-| DistilGPT-2 | 0.0380 | 0.0002 | 0.0271 | 0.3936 | 58.0 |
-| BERTimbau | 0.1978 | 0.0451 | 0.1173 | 0.7727 | 150.3 |
-| PTT5-summ | 0.1981 | 0.0373 | 0.1304 | 0.8030 | 173.2 |
+| GPT-2 | 0.0370 | 0.0000 | 0.0277 | 0.3896 | 89.6 |
+| DistilGPT-2 | 0.0380 | 0.0002 | 0.0271 | 0.3936 | 54.7 |
+| BERTimbau | 0.1978 | 0.0451 | 0.1173 | 0.7727 | 156.1 |
+| PTT5-summ | 0.1981 | 0.0373 | 0.1304 | 0.8030 | 184.1 |
+| PTT5-summ-chunk | 0.2181 | 0.0396 | 0.1340 | 0.8305 | 1029.5 |
 
-> **Não destacamos um "vencedor"**: as diferenças entre BERTimbau e PTT5-summ
-> estão dentro do ruído amostral em todas as métricas — ver §6.1.1.
+> **Não destacamos um "vencedor"**: as diferenças entre BERTimbau, PTT5-summ e
+> PTT5-summ-chunk estão dentro do ruído amostral em todas as métricas — ver
+> §6.1.1. Os tempos variam entre execuções (mesma máquina, CPU compartilhada);
+> as métricas são determinísticas e reproduzem exatamente.
 
-Figuras em `experiments/results/scielo/`.
+Figuras em `experiments/results/scielo5/`.
 
 ### 6.1.1. Dispersão e incerteza (corpus real, n = 30)
 
@@ -127,6 +152,7 @@ recalculados por amostra a partir dos resumos salvos
 | DistilGPT-2 | 0.0380 ± 0.0211 [0.0304, 0.0454] | 0.0271 [0.0220, 0.0322] | 0.3936 [0.3575, 0.4262] |
 | BERTimbau | 0.1978 ± 0.1251 [0.1545, 0.2422] | 0.1173 [0.0971, 0.1385] | 0.7727 [0.7217, 0.8216] |
 | PTT5-summ | 0.1981 ± 0.0895 [0.1675, 0.2310] | 0.1304 [0.1132, 0.1485] | 0.8030 [0.7713, 0.8336] |
+| PTT5-summ-chunk | 0.2181 ± 0.0815 [0.1893, 0.2472] | 0.1340 [0.1183, 0.1500] | 0.8305 [0.8076, 0.8507] |
 
 **Diferença pareada PTT5-summ − BERTimbau** (IC 95% bootstrap):
 
@@ -137,9 +163,18 @@ recalculados por amostra a partir dos resumos salvos
 | ROUGE-L | +0.0131 | [−0.0066, +0.0333] | inclui zero |
 | Semântica | +0.0303 | [−0.0181, +0.0820] | inclui zero |
 
-**As quatro diferenças incluem zero**: com n = 30, PTT5-summ e BERTimbau são
-**indistinguíveis** em todas as métricas. (Estatística descritiva — reporta
-incerteza; não é teste de hipótese.)
+**Diferença pareada PTT5-summ-chunk − PTT5-summ** (chunking × truncamento):
+
+| Métrica | Diferença | IC 95% | Conclusão |
+|---|---|---|---|
+| ROUGE-1 | +0.0200 | [−0.0112, +0.0518] | inclui zero |
+| ROUGE-2 | +0.0023 | [−0.0080, +0.0128] | inclui zero |
+| ROUGE-L | +0.0036 | [−0.0134, +0.0216] | inclui zero |
+| Semântica | +0.0275 | [−0.0019, +0.0580] | inclui zero |
+
+**Todas as diferenças incluem zero**: com n = 30, BERTimbau, PTT5-summ e
+PTT5-summ-chunk são **indistinguíveis** entre si em todas as métricas.
+(Estatística descritiva — reporta incerteza; não é teste de hipótese.)
 
 ### 6.2. Corpus sintético — 10 textos (piloto)
 
@@ -185,13 +220,26 @@ todo o corpus, em CPU. Figuras geradas por `experiments/gerar_figuras.py`.)
   entre artigos. Observação descritiva — a diferença de dispersão em si não foi
   testada.
 
-- **Limitação estrutural: truncamento da entrada.** Os sumarizadores truncam a
-  entrada em 512 tokens, mas os artigos reais têm mediana de ~4.815 palavras. Ou
-  seja, os modelos leem apenas o começo do artigo (aproximadamente a introdução),
-  enquanto o resumo de referência sintetiza o **artigo inteiro**. Isso limita
-  estruturalmente o ROUGE alcançável e é a explicação mais provável para a queda
-  em §6.1. Tratar textos longos (chunking, modelos de contexto longo) é o próximo
-  passo natural.
+- **Truncamento da entrada e a assimetria de cobertura.** Os modelos causais e o
+  PTT5-summ truncam a entrada em 512 tokens, mas os artigos reais têm mediana de
+  ~4.815 palavras: eles leem apenas o começo do artigo (aproximadamente a
+  introdução), enquanto o resumo de referência sintetiza o **artigo inteiro**. O
+  BERTimbau extrativo, por percorrer todas as sentenças, **não** sofre essa
+  restrição — o que torna a comparação assimétrica em cobertura de texto.
+
+- **O chunking melhora de forma consistente, mas a melhora não é confirmável e
+  custa caro.** O PTT5-summ-chunk, que lê o artigo inteiro, ficou acima do
+  PTT5-summ (truncado) nas **quatro** métricas — ROUGE-1 +0.0200, ROUGE-2
+  +0.0023, ROUGE-L +0.0036 e semântica +0.0275. A consistência da direção é
+  sugestiva, e a semântica quase exclui zero ([−0.0019, +0.0580]). Ainda assim,
+  **os IC 95% das quatro diferenças incluem zero**: com n = 30 não é possível
+  afirmar que o chunking supera o truncamento. E o custo é alto: **1029.5 s
+  contra 184.1 s (≈5,6×)**. Ou seja, remover a desvantagem de cobertura **não**
+  produziu o salto que a hipótese previa — as explicações candidatas são (a) o
+  efeito ser pequeno, (b) n = 30 não ter poder para detectá-lo, e (c) o *reduce*
+  do map-reduce sintetizar mal (nas inspeções manuais, o resumo final tendia a
+  refletir o começo do artigo em vez de integrar o todo). Distinguir entre essas
+  hipóteses exige mais amostras.
 
 - **Viés potencial na métrica semântica.** O `SemanticEvaluator` usa o mesmo
   encoder (BERTimbau) que gera os resumos extrativos, o que poderia favorecer o
@@ -202,13 +250,15 @@ todo o corpus, em CPU. Figuras geradas por `experiments/gerar_figuras.py`.)
 - **ROUGE mede sobreposição léxica**, não qualidade semântica, e aqui não usa
   stemming para PT; por isso a métrica semântica complementar.
 
-- **Custo.** No corpus real, BERTimbau (150 s) e PTT5-summ (173 s) têm custo
-  parecido; os modelos em inglês são mais rápidos, mas inúteis para a tarefa.
+- **Custo.** BERTimbau (156 s) e PTT5-summ (184 s) têm custo parecido; o
+  PTT5-summ-chunk custa ≈5,6× o PTT5-summ. Os modelos em inglês são os mais
+  rápidos, mas inúteis para a tarefa.
 
 - **Incerteza reportada, mas sem teste de hipótese.** A §6.1.1 traz IC 95% por
   bootstrap (descritivo). Não foi executado teste de hipótese formal, e n = 30 é
-  pequeno: o corpus atual não tem poder para detectar diferenças pequenas entre
-  BERTimbau e PTT5-summ. Aumentar n é o caminho para decidir esse empate.
+  pequeno: o corpus atual **não tem poder** para separar BERTimbau, PTT5-summ e
+  PTT5-summ-chunk. Aumentar n é o caminho para decidir esses empates — é a
+  limitação que mais restringe as conclusões deste trabalho.
 
 - **Ambiente CPU**; LLaMA-2 fora desta rodada.
 
@@ -220,16 +270,26 @@ todo o corpus, em CPU. Figuras geradas por `experiments/gerar_figuras.py`.)
 # 1. coletar os 30 artigos reais
 python -m data.coletar_scielo --n 30 --out data/processed/corpus_scielo.json
 
-# 2. rodar a comparação
+# 2. rodar a comparação (--checkpoint-dir permite retomar se for interrompida)
 python -m experiments.compare_models \
-    --models gpt2 distilgpt2 bertimbau ptt5-summ --semantic --seed 42 \
+    --models gpt2 distilgpt2 bertimbau ptt5-summ ptt5-summ-chunk \
+    --semantic --seed 42 \
     --corpus data/processed/corpus_scielo.json \
-    --output experiments/results/comparacao_scielo.json
+    --checkpoint-dir experiments/results/.ckpt \
+    --output experiments/results/comparacao_scielo5.json
 
-# 3. tabela e figuras
+# 3. incerteza (IC 95%) e diferença pareada chunking × truncamento
+python -m experiments.analise_estatistica \
+    --input experiments/results/comparacao_scielo5.json \
+    --corpus data/processed/corpus_scielo.json \
+    --comparar ptt5-summ-chunk ptt5-summ --semantic \
+    --out experiments/results/scielo5/analise_estatistica.json
+
+# 4. tabela e figuras (com barras de erro do IC 95%)
 python -m experiments.gerar_figuras \
-    --input experiments/results/comparacao_scielo.json \
-    --outdir experiments/results/scielo
+    --input experiments/results/comparacao_scielo5.json \
+    --analise experiments/results/scielo5/analise_estatistica.json \
+    --outdir experiments/results/scielo5
 ```
 
 **Corpus sintético — piloto (§6.2):**
