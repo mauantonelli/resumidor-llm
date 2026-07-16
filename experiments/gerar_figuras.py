@@ -54,7 +54,21 @@ def _rotular_barras(ax, barras, fmt="{:.3f}"):
         )
 
 
-def figura_rouge(dados, modelos, outpath):
+def _yerr(analise, modelos, metrica, valores):
+    """Constroi o yerr assimetrico a partir do IC 95% da analise estatistica."""
+    if not analise:
+        return None
+    lo_err, hi_err = [], []
+    for m, v in zip(modelos, valores):
+        ic = (analise.get(m, {}).get(metrica, {}) or {}).get("ic95")
+        if not ic:
+            return None  # sem IC para algum modelo: nao desenha barra de erro
+        lo_err.append(max(0.0, v - ic[0]))
+        hi_err.append(max(0.0, ic[1] - v))
+    return [lo_err, hi_err]
+
+
+def figura_rouge(dados, modelos, outpath, analise=None):
     r1 = [dados[m]["rouge_scores"]["rouge1"]["fmeasure"] for m in modelos]
     r2 = [dados[m]["rouge_scores"]["rouge2"]["fmeasure"] for m in modelos]
     rl = [dados[m]["rouge_scores"]["rougeL"]["fmeasure"] for m in modelos]
@@ -63,18 +77,26 @@ def figura_rouge(dados, modelos, outpath):
     x = range(len(modelos))
     largura = 0.26
     fig, ax = plt.subplots(figsize=(8, 4.5))
-    b1 = ax.bar([i - largura for i in x], r1, largura, label="ROUGE-1", color=COR_R1)
-    b2 = ax.bar(list(x), r2, largura, label="ROUGE-2", color=COR_R2)
-    b3 = ax.bar([i + largura for i in x], rl, largura, label="ROUGE-L", color=COR_RL)
+    ekw = dict(ecolor="#444444", capsize=3, error_kw={"linewidth": 1.0})
+    b1 = ax.bar([i - largura for i in x], r1, largura, label="ROUGE-1", color=COR_R1,
+                yerr=_yerr(analise, modelos, "rouge1", r1), **ekw)
+    b2 = ax.bar(list(x), r2, largura, label="ROUGE-2", color=COR_R2,
+                yerr=_yerr(analise, modelos, "rouge2", r2), **ekw)
+    b3 = ax.bar([i + largura for i in x], rl, largura, label="ROUGE-L", color=COR_RL,
+                yerr=_yerr(analise, modelos, "rougeL", rl), **ekw)
 
-    _rotular_barras(ax, b1)
-    _rotular_barras(ax, b2)
-    _rotular_barras(ax, b3)
+    if not analise:
+        _rotular_barras(ax, b1)
+        _rotular_barras(ax, b2)
+        _rotular_barras(ax, b3)
 
     ax.set_xticks(list(x))
     ax.set_xticklabels(rotulos)
     ax.set_ylabel("F-measure")
-    ax.set_title("ROUGE por modelo (F-measure)")
+    titulo = "ROUGE por modelo (F-measure)"
+    if analise:
+        titulo += " — barras de erro: IC 95%"
+    ax.set_title(titulo)
     ax.legend(frameon=False)
     _estilo_eixo(ax)
     fig.tight_layout()
@@ -127,6 +149,9 @@ def parse_args():
     p = argparse.ArgumentParser(description="Gera tabela e figuras da comparacao")
     p.add_argument("--input", default="experiments/results/comparacao.json")
     p.add_argument("--outdir", default="experiments/results")
+    p.add_argument("--analise", default=None,
+                   help="JSON de experiments.analise_estatistica; desenha IC 95%% "
+                        "como barras de erro")
     return p.parse_args()
 
 
@@ -139,7 +164,13 @@ def main():
     tem_semantica = all("semantic_scores" in dados[m] for m in modelos)
     os.makedirs(args.outdir, exist_ok=True)
 
-    fig1 = figura_rouge(dados, modelos, os.path.join(args.outdir, "fig_rouge.png"))
+    analise = None
+    if args.analise:
+        with open(args.analise, encoding="utf-8") as f:
+            analise = json.load(f)
+
+    fig1 = figura_rouge(dados, modelos, os.path.join(args.outdir, "fig_rouge.png"),
+                        analise=analise)
     fig3 = figura_barra_simples(
         dados, modelos, lambda d: d["time"],
         "Tempo total por modelo", "Tempo (s)",
