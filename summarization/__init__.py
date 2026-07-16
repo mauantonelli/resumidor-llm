@@ -3,3 +3,4 @@ from summarization.summarizer import Summarizer
 from summarization.preprocessing import TextPreprocessor
 from summarization.extractive_summarizer import ExtractiveSummarizer
 from summarization.seq2seq_summarizer import Seq2SeqSummarizer
+from summarization.chunked_summarizer import ChunkedSeq2SeqSummarizer

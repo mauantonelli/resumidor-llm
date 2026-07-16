@@ -30,6 +30,7 @@ ROTULOS_MODELO = {
     "distilgpt2": "DistilGPT-2",
     "bertimbau": "BERTimbau",
     "ptt5-summ": "PTT5-summ",
+    "ptt5-summ-chunk": "PTT5-summ\n(chunking)",
 }
 
 

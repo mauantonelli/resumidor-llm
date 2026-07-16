@@ -90,6 +90,12 @@ def create_summarizer(model_name: str, args):
             model_name=model_name,
             max_summary_length=args.max_length,
         )
+    elif model_config["type"] == "seq2seq_chunk":
+        from summarization.chunked_summarizer import ChunkedSeq2SeqSummarizer
+        return ChunkedSeq2SeqSummarizer(
+            model_name=model_name,
+            max_summary_length=args.max_length,
+        )
     else:
         from summarization.summarizer import Summarizer
         return Summarizer(

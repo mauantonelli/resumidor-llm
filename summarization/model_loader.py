@@ -35,6 +35,13 @@ SUPPORTED_MODELS = {
         "type": "seq2seq",
         "quantize": False,
     },
+    # mesmo modelo do ptt5-summ, mas com chunking hierarquico (map-reduce)
+    # em vez de truncar a entrada — permite comparar truncamento x chunking.
+    "ptt5-summ-chunk": {
+        "model_id": "recogna-nlp/ptt5-base-summ",
+        "type": "seq2seq_chunk",
+        "quantize": False,
+    },
 }
 
 
@@ -71,7 +78,7 @@ class ModelLoader:
                 f"Use ExtractiveSummarizer para este modelo."
             )
 
-        if config["type"] == "seq2seq":
+        if config["type"] in ("seq2seq", "seq2seq_chunk"):
             tokenizer = AutoTokenizer.from_pretrained(model_id)
             model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
             model = model.to(self.device)
