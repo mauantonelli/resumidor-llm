@@ -26,10 +26,15 @@ O projeto tem três frentes:
 - ✅ Assistente RAG corrigido para a API 1.x do LangChain.
 - ✅ Suíte de testes: **39 passando**.
 - ✅ **Avaliação comparativa executada** (GPT-2, DistilGPT-2, BERTimbau, PTT5-summ;
-  seed 42, CPU). Resultados, tabela e figuras em `experiments/results/` (gerados
-  localmente, fora do versionamento). Metodologia e números em
-  `docs/metodologia_rascunho.md`. Resumo: **PTT5-summ** obteve o melhor ROUGE;
-  GPT-2/DistilGPT-2 (pré-treino em inglês) tiveram desempenho fraco em PT-BR.
+  seed 42, CPU) em **dois corpora**: 10 textos sintéticos (piloto) e **30 artigos
+  científicos reais do SciELO** (principal). Resultados, tabelas e figuras em
+  `experiments/results/` (gerados localmente, fora do versionamento); metodologia
+  e números em `docs/metodologia_rascunho.md`.
+- 📊 **Principais achados** (corpus real): GPT-2/DistilGPT-2 (pré-treino em inglês)
+  são inúteis para PT-BR (ROUGE ≈ 0); **BERTimbau e PTT5-summ empatam**
+  (ROUGE-1 0.198 nos dois); os scores **caem muito** ao sair do corpus sintético
+  para artigos reais, e a entrada é truncada em 512 tokens contra artigos de
+  ~4.800 palavras — limitação estrutural documentada.
 - ℹ️ O notebook `notebooks/analise_comparativa.ipynb` contém o código de análise,
   mas ainda sem saídas salvas (o caminho reprodutível é via `experiments/`).
 

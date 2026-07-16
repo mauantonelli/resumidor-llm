@@ -4,16 +4,38 @@
 > vieram de **uma execução real** (seed 42, CPU, Python 3.14). Reproduza com os
 > comandos da seção "Reprodução". Nenhum valor foi estimado.
 
-## 1. Corpus de avaliação
+## 1. Corpora de avaliação
 
-A avaliação usa um corpus de **10 textos científicos em português** (`data/corpus.py`,
-`BUILTIN_SAMPLES`), cada um acompanhado de um **resumo de referência**. Os textos
-cobrem temas de computação/IA (PLN, sumarização, aprendizado de máquina, RAG,
-ética em IA etc.), com ~150–200 palavras cada.
+Foram usados **dois** corpora, em ordem crescente de realismo.
 
-> **Limitação (registrada):** o corpus é sintético — textos e resumos de
-> referência foram redigidos pelo próprio autor. Serve para validar o pipeline,
-> mas não permite generalização; uma rodada final deve usar artigos reais.
+### 1.1. Corpus sintético (piloto)
+
+10 textos em português (`data/corpus.py`, `BUILTIN_SAMPLES`), cada um com um
+resumo de referência, sobre temas de computação/IA, com ~150–200 palavras cada.
+
+> **Limitação:** textos e referências foram redigidos pelo próprio autor. Serve
+> para validar o pipeline, **não** para generalizar.
+
+### 1.2. Corpus científico real — SciELO (principal)
+
+30 artigos científicos **reais** em PT-BR, coletados do SciELO Brasil por
+`data/coletar_scielo.py`:
+
+- **Entrada** = corpo do artigo (`<body>` do JATS XML).
+- **Referência** = resumo (abstract) escrito pelos próprios autores
+  (`<abstract>` do JATS).
+- **Diversidade**: 6 artigos de cada um de 5 periódicos — Revista de Saúde
+  Pública, Cadernos de Saúde Pública, Educação & Sociedade, Interface
+  (Comunicação, Saúde, Educação) e Estudos Avançados — cobrindo saúde, educação
+  e temas interdisciplinares.
+- **Dimensões**: corpo com mediana de ~4.815 palavras; abstract com mediana de
+  ~144 palavras.
+- **Controle de vazamento**: artigos retro-digitalizados replicam o resumo
+  dentro do `<body>`. O coletor remove do corpo os parágrafos que replicam o
+  abstract, o título e cabeçalhos/autores. Verificado: **0 vazamentos em 30**.
+
+> **Ruído residual conhecido:** o início do corpo pode conter o cabeçalho
+> bilíngue (título em inglês, autores, afiliação) de alguns artigos.
 
 ## 2. Pré-processamento
 
@@ -79,6 +101,19 @@ número da tabela é 100% reproduzível.
 
 ## 6. Resultados (execução real — seed 42, CPU)
 
+### 6.1. Corpus científico real — SciELO, 30 artigos (resultado principal)
+
+| Modelo | ROUGE-1 F | ROUGE-2 F | ROUGE-L F | Sim. semântica | Tempo (s) |
+|---|---|---|---|---|---|
+| GPT-2 | 0.0370 | 0.0000 | 0.0277 | 0.3896 | 104.7 |
+| DistilGPT-2 | 0.0380 | 0.0002 | 0.0271 | 0.3936 | 58.0 |
+| BERTimbau | 0.1978 | **0.0451** | 0.1173 | 0.7727 | 150.3 |
+| PTT5-summ | **0.1981** | 0.0373 | **0.1304** | **0.8030** | 173.2 |
+
+Figuras em `experiments/results/scielo/`.
+
+### 6.2. Corpus sintético — 10 textos (piloto)
+
 | Modelo | ROUGE-1 F | ROUGE-2 F | ROUGE-L F | Sim. semântica | Tempo (s) |
 |---|---|---|---|---|---|
 | GPT-2 | 0.0212 | 0.0013 | 0.0212 | 0.4918 | 39.9 |
@@ -86,37 +121,78 @@ número da tabela é 100% reproduzível.
 | BERTimbau | 0.3429 | 0.1318 | 0.2459 | **0.8988** | 3.3 |
 | PTT5-summ | **0.3913** | **0.2250** | **0.3270** | 0.8943 | 40.2 |
 
-(Melhor valor de cada coluna em negrito; tempo é a soma de carregamento + geração
-sobre 10 amostras em CPU.)
+Figuras em `experiments/results/`.
 
-Figuras correspondentes em `experiments/results/` (`fig_rouge.png`,
-`fig_semantica.png`, `fig_tempo.png`), geradas por `experiments/gerar_figuras.py`.
+(Melhor valor de cada coluna em negrito; tempo = carregamento + geração sobre
+todo o corpus, em CPU. Figuras geradas por `experiments/gerar_figuras.py`.)
 
 ## 7. Discussão e limitações
 
-- **O modelo em português importa mais que o paradigma.** O PTT5-summ (abstrativo,
-  ajustado para PT) obteve o melhor ROUGE em todas as variantes (R-1 0.391, R-2
-  0.225, R-L 0.327), superando inclusive o BERTimbau extrativo. Isso mostra que o
-  fraco desempenho de GPT-2/DistilGPT-2 não é da abordagem gerativa em si, mas de
-  usar modelos pré-treinados em inglês e sem ajuste para a tarefa em português
-  (ROUGE ≈ 0, geração incoerente).
-- **Extrativo × abstrativo em similaridade semântica.** BERTimbau (0.899) e
-  PTT5-summ (0.894) ficam praticamente empatados na métrica semântica, apesar da
-  grande diferença em ROUGE — indício de que o resumo abstrativo preserva o
-  sentido mesmo reformulando as palavras.
+- **Modelos em inglês não servem para PT-BR.** GPT-2 e DistilGPT-2 ficam com
+  ROUGE ≈ 0 e similaridade semântica ~0.39 nos dois corpora, gerando texto
+  incoerente. O problema não é a abordagem gerativa em si, mas usar modelos
+  pré-treinados em inglês, sem ajuste para a tarefa em português.
+
+- **O corpus sintético inflou os resultados.** Comparando §6.1 e §6.2, todos os
+  scores caem fortemente ao sair do corpus sintético para artigos reais — o
+  PTT5-summ vai de ROUGE-1 0.391 para 0.198, e o BERTimbau de 0.343 para 0.198.
+  Textos científicos reais são substancialmente mais difíceis, e um corpus
+  redigido pelo próprio autor favorece artificialmente os modelos. **Este é o
+  principal argumento a favor de avaliar em dados reais.**
+
+- **No corpus real, extrativo e abstrativo empatam — a vantagem do PTT5-summ não
+  se sustenta.** No sintético, o PTT5-summ dominava todas as métricas ROUGE. Nos
+  artigos reais o quadro é misto e essencialmente um empate: ROUGE-1 praticamente
+  idêntico (0.1981 vs 0.1978), o BERTimbau **vence** em ROUGE-2 (0.0451 vs
+  0.0373), e o PTT5-summ vence em ROUGE-L (0.1304 vs 0.1173) e na similaridade
+  semântica (0.8030 vs 0.7727). Com n = 30 e sem teste estatístico, **não há base
+  para declarar um vencedor em ROUGE-1**.
+
+- **Limitação estrutural: truncamento da entrada.** Os sumarizadores truncam a
+  entrada em 512 tokens, mas os artigos reais têm mediana de ~4.815 palavras. Ou
+  seja, os modelos leem apenas o começo do artigo (aproximadamente a introdução),
+  enquanto o resumo de referência sintetiza o **artigo inteiro**. Isso limita
+  estruturalmente o ROUGE alcançável e é a explicação mais provável para a queda
+  em §6.1. Tratar textos longos (chunking, modelos de contexto longo) é o próximo
+  passo natural.
+
 - **Viés potencial na métrica semântica.** O `SemanticEvaluator` usa o mesmo
-  encoder (BERTimbau) que gera os resumos extrativos, o que pode favorecer o
-  BERTimbau nessa métrica específica — a leitura do quase-empate deve considerar
-  isso.
+  encoder (BERTimbau) que gera os resumos extrativos, o que poderia favorecer o
+  BERTimbau. Vale notar que, mesmo assim, o PTT5-summ **supera** o BERTimbau na
+  métrica semântica no corpus real — o que reforça esse resultado específico.
+
 - **ROUGE mede sobreposição léxica**, não qualidade semântica, e aqui não usa
   stemming para PT; por isso a métrica semântica complementar.
-- **Custo.** O melhor modelo (PTT5-summ) é também o mais lento em CPU (~40 s no
-  total); BERTimbau é o mais rápido (~3 s). Há um trade-off qualidade × tempo.
-- **Corpus pequeno e sintético** (ver §1) — principal limitação para
-  generalização.
+
+- **Custo.** No corpus real, BERTimbau (150 s) e PTT5-summ (173 s) têm custo
+  parecido; os modelos em inglês são mais rápidos, mas inúteis para a tarefa.
+
+- **Sem significância estatística.** n = 30, sem intervalo de confiança nem teste
+  de hipótese — diferenças pequenas não devem ser interpretadas como superioridade.
+
 - **Ambiente CPU**; LLaMA-2 fora desta rodada.
 
 ## Reprodução
+
+**Corpus científico real (SciELO) — resultado principal (§6.1):**
+
+```bash
+# 1. coletar os 30 artigos reais
+python -m data.coletar_scielo --n 30 --out data/processed/corpus_scielo.json
+
+# 2. rodar a comparação
+python -m experiments.compare_models \
+    --models gpt2 distilgpt2 bertimbau ptt5-summ --semantic --seed 42 \
+    --corpus data/processed/corpus_scielo.json \
+    --output experiments/results/comparacao_scielo.json
+
+# 3. tabela e figuras
+python -m experiments.gerar_figuras \
+    --input experiments/results/comparacao_scielo.json \
+    --outdir experiments/results/scielo
+```
+
+**Corpus sintético — piloto (§6.2):**
 
 ```bash
 python -m experiments.compare_models \
@@ -127,3 +203,7 @@ python -m experiments.gerar_figuras \
     --input experiments/results/comparacao.json \
     --outdir experiments/results
 ```
+
+> A coleta do SciELO depende de disponibilidade da API/site; o corpus coletado
+> fica em `data/processed/` (fora do versionamento). Os números acima vieram da
+> coleta de 30 artigos descrita em §1.2.
