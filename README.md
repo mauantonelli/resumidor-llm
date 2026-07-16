@@ -33,12 +33,13 @@ O projeto tem três frentes:
 - 📊 **Principais achados** (corpus real, com IC 95% por bootstrap):
   - GPT-2/DistilGPT-2 (pré-treino em inglês) são inúteis para PT-BR (ROUGE ≈ 0) —
     achado robusto, os IC não chegam perto dos demais.
-  - **BERTimbau e PTT5-summ são indistinguíveis**: o IC 95% da diferença inclui
-    zero nas quatro métricas (n = 30).
+  - **BERTimbau, PTT5-summ e PTT5-summ-chunk são indistinguíveis entre si**: o
+    IC 95% da diferença inclui zero em todas as métricas (n = 30).
   - Os scores **caem muito** do corpus sintético para artigos reais (PTT5-summ:
     ROUGE-1 0.391 → 0.198) — o corpus sintético inflava os resultados.
-  - Limitação estrutural: entrada truncada em 512 tokens contra artigos de
-    ~4.800 palavras (mediana).
+  - **Chunking × truncamento**: ler o artigo inteiro (chunking) melhorou nas
+    quatro métricas de forma consistente (ROUGE-1 +0.020), mas a melhora **não é
+    confirmável** com n = 30 e custa ≈5,6× mais tempo.
 - ℹ️ O notebook `notebooks/analise_comparativa.ipynb` contém o código de análise,
   mas ainda sem saídas salvas (o caminho reprodutível é via `experiments/`).
 
@@ -111,20 +112,24 @@ python -m experiments.gerar_figuras \
 
 # rodar sobre o corpus científico real (SciELO) em vez do sintético
 python -m experiments.compare_models \
-    --models gpt2 distilgpt2 bertimbau ptt5-summ \
+    --models gpt2 distilgpt2 bertimbau ptt5-summ ptt5-summ-chunk \
     --semantic --seed 42 \
     --corpus data/processed/corpus_scielo.json \
-    --output experiments/results/comparacao_scielo.json
+    --checkpoint-dir experiments/results/.ckpt \
+    --output experiments/results/comparacao_scielo5.json
 ```
+
+`--checkpoint-dir` grava um checkpoint após cada artigo: se a execução for
+interrompida, basta rodar o mesmo comando que ela retoma de onde parou.
 
 ### Análise de incerteza (IC 95%)
 
 ```bash
 python -m experiments.analise_estatistica \
-    --input experiments/results/comparacao_scielo.json \
+    --input experiments/results/comparacao_scielo5.json \
     --corpus data/processed/corpus_scielo.json \
-    --comparar ptt5-summ bertimbau --semantic \
-    --out experiments/results/scielo/analise_estatistica.json
+    --comparar ptt5-summ-chunk ptt5-summ --semantic \
+    --out experiments/results/scielo5/analise_estatistica.json
 ```
 
 Roda cada modelo sobre o corpus de avaliação, calcula ROUGE (e, com `--semantic`,
