@@ -108,6 +108,12 @@ python -m rag_assistant.cli chat
 
 O índice vetorial é gravado em `data/vector_store/` (fora do versionamento).
 
+> **Estado do RAG:** a recuperação (FAISS + embeddings BERTimbau) retorna as fontes
+> corretas. O gerador padrão é o GPorTuguese-2 (`pierreguillou/gpt2-small-portuguese`),
+> que produz português coerente, mas por ser um LM base (não ajustado a instruções)
+> **ainda não fundamenta a resposta no contexto** — tende a alucinar. Uma resposta
+> fundamentada exigiria um modelo PT ajustado a instruções (trabalho futuro).
+
 ### Notebook de análise comparativa
 
 ```bash

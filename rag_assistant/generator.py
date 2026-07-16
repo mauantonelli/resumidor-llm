@@ -7,7 +7,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 class RAGGenerator:
     def __init__(
         self,
-        model_name: str = "gpt2",
+        model_name: str = "pierreguillou/gpt2-small-portuguese",
         device: Optional[str] = None,
         max_new_tokens: int = 256,
     ):

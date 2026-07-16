@@ -80,8 +80,11 @@ pytest tests/
 ### Ainda em aberto (perguntar antes)
 
 - Trocar o corpus sintético por artigos reais PT-BR (rodada final).
-- Escolher um gerador PT-BR coerente para o **RAG** (hoje ainda usa GPT-2, que
-  produz texto degenerado; a recuperação já funciona).
+- **RAG**: gerador trocado para GPorTuguese-2 (`pierreguillou/gpt2-small-portuguese`)
+  → português coerente, mas é LM base (não instruction-tuned): **não fundamenta a
+  resposta no contexto recuperado (alucina)**. A recuperação já retorna as fontes
+  certas. Grounding real exige um modelo PT ajustado a instruções (decisão em
+  aberto, provavelmente maior/gated).
 - Rodar/salvar o notebook com as saídas reais.
 
 ## Convenções de código

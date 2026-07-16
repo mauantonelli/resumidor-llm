@@ -42,7 +42,7 @@ def parse_args() -> argparse.Namespace:
     query_parser.add_argument(
         "--model",
         type=str,
-        default="gpt2",
+        default="pierreguillou/gpt2-small-portuguese",
         help="Modelo gerador",
     )
 
@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
     chat_parser.add_argument(
         "--model",
         type=str,
-        default="gpt2",
+        default="pierreguillou/gpt2-small-portuguese",
         help="Modelo gerador",
     )
 

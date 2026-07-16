@@ -9,7 +9,7 @@ from rag_assistant.generator import RAGGenerator
 class RAGPipeline:
     def __init__(
         self,
-        generator_model: str = "gpt2",
+        generator_model: str = "pierreguillou/gpt2-small-portuguese",
         embedding_model: str = "neuralmind/bert-base-portuguese-cased",
         persist_directory: Optional[str] = None,
         chunk_size: int = 500,
