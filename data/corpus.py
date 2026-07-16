@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 from typing import Optional
@@ -250,7 +251,7 @@ class Corpus:
             self.data_dir = data_dir
 
     def get_builtin_samples(self) -> list[dict]:
-        return BUILTIN_SAMPLES.copy()
+        return copy.deepcopy(BUILTIN_SAMPLES)
 
     def load_from_json(self, filepath: str) -> list[dict]:
         with open(filepath, "r", encoding="utf-8") as f:
