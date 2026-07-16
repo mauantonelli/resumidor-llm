@@ -30,11 +30,15 @@ O projeto tem três frentes:
   científicos reais do SciELO** (principal). Resultados, tabelas e figuras em
   `experiments/results/` (gerados localmente, fora do versionamento); metodologia
   e números em `docs/metodologia_rascunho.md`.
-- 📊 **Principais achados** (corpus real): GPT-2/DistilGPT-2 (pré-treino em inglês)
-  são inúteis para PT-BR (ROUGE ≈ 0); **BERTimbau e PTT5-summ empatam**
-  (ROUGE-1 0.198 nos dois); os scores **caem muito** ao sair do corpus sintético
-  para artigos reais, e a entrada é truncada em 512 tokens contra artigos de
-  ~4.800 palavras — limitação estrutural documentada.
+- 📊 **Principais achados** (corpus real, com IC 95% por bootstrap):
+  - GPT-2/DistilGPT-2 (pré-treino em inglês) são inúteis para PT-BR (ROUGE ≈ 0) —
+    achado robusto, os IC não chegam perto dos demais.
+  - **BERTimbau e PTT5-summ são indistinguíveis**: o IC 95% da diferença inclui
+    zero nas quatro métricas (n = 30).
+  - Os scores **caem muito** do corpus sintético para artigos reais (PTT5-summ:
+    ROUGE-1 0.391 → 0.198) — o corpus sintético inflava os resultados.
+  - Limitação estrutural: entrada truncada em 512 tokens contra artigos de
+    ~4.800 palavras (mediana).
 - ℹ️ O notebook `notebooks/analise_comparativa.ipynb` contém o código de análise,
   mas ainda sem saídas salvas (o caminho reprodutível é via `experiments/`).
 
@@ -111,6 +115,16 @@ python -m experiments.compare_models \
     --semantic --seed 42 \
     --corpus data/processed/corpus_scielo.json \
     --output experiments/results/comparacao_scielo.json
+```
+
+### Análise de incerteza (IC 95%)
+
+```bash
+python -m experiments.analise_estatistica \
+    --input experiments/results/comparacao_scielo.json \
+    --corpus data/processed/corpus_scielo.json \
+    --comparar ptt5-summ bertimbau --semantic \
+    --out experiments/results/scielo/analise_estatistica.json
 ```
 
 Roda cada modelo sobre o corpus de avaliação, calcula ROUGE (e, com `--semantic`,

@@ -107,10 +107,39 @@ número da tabela é 100% reproduzível.
 |---|---|---|---|---|---|
 | GPT-2 | 0.0370 | 0.0000 | 0.0277 | 0.3896 | 104.7 |
 | DistilGPT-2 | 0.0380 | 0.0002 | 0.0271 | 0.3936 | 58.0 |
-| BERTimbau | 0.1978 | **0.0451** | 0.1173 | 0.7727 | 150.3 |
-| PTT5-summ | **0.1981** | 0.0373 | **0.1304** | **0.8030** | 173.2 |
+| BERTimbau | 0.1978 | 0.0451 | 0.1173 | 0.7727 | 150.3 |
+| PTT5-summ | 0.1981 | 0.0373 | 0.1304 | 0.8030 | 173.2 |
+
+> **Não destacamos um "vencedor"**: as diferenças entre BERTimbau e PTT5-summ
+> estão dentro do ruído amostral em todas as métricas — ver §6.1.1.
 
 Figuras em `experiments/results/scielo/`.
+
+### 6.1.1. Dispersão e incerteza (corpus real, n = 30)
+
+Média ± desvio-padrão e IC 95% (bootstrap, 10.000 reamostragens, seed 42),
+recalculados por amostra a partir dos resumos salvos
+(`experiments/analise_estatistica.py`):
+
+| Modelo | ROUGE-1 (IC 95%) | ROUGE-L (IC 95%) | Semântica (IC 95%) |
+|---|---|---|---|
+| GPT-2 | 0.0370 ± 0.0232 [0.0292, 0.0452] | 0.0277 [0.0220, 0.0338] | 0.3896 [0.3548, 0.4192] |
+| DistilGPT-2 | 0.0380 ± 0.0211 [0.0304, 0.0454] | 0.0271 [0.0220, 0.0322] | 0.3936 [0.3575, 0.4262] |
+| BERTimbau | 0.1978 ± 0.1251 [0.1545, 0.2422] | 0.1173 [0.0971, 0.1385] | 0.7727 [0.7217, 0.8216] |
+| PTT5-summ | 0.1981 ± 0.0895 [0.1675, 0.2310] | 0.1304 [0.1132, 0.1485] | 0.8030 [0.7713, 0.8336] |
+
+**Diferença pareada PTT5-summ − BERTimbau** (IC 95% bootstrap):
+
+| Métrica | Diferença | IC 95% | Conclusão |
+|---|---|---|---|
+| ROUGE-1 | +0.0003 | [−0.0395, +0.0417] | inclui zero |
+| ROUGE-2 | −0.0078 | [−0.0288, +0.0112] | inclui zero |
+| ROUGE-L | +0.0131 | [−0.0066, +0.0333] | inclui zero |
+| Semântica | +0.0303 | [−0.0181, +0.0820] | inclui zero |
+
+**As quatro diferenças incluem zero**: com n = 30, PTT5-summ e BERTimbau são
+**indistinguíveis** em todas as métricas. (Estatística descritiva — reporta
+incerteza; não é teste de hipótese.)
 
 ### 6.2. Corpus sintético — 10 textos (piloto)
 
@@ -128,10 +157,12 @@ todo o corpus, em CPU. Figuras geradas por `experiments/gerar_figuras.py`.)
 
 ## 7. Discussão e limitações
 
-- **Modelos em inglês não servem para PT-BR.** GPT-2 e DistilGPT-2 ficam com
-  ROUGE ≈ 0 e similaridade semântica ~0.39 nos dois corpora, gerando texto
-  incoerente. O problema não é a abordagem gerativa em si, mas usar modelos
-  pré-treinados em inglês, sem ajuste para a tarefa em português.
+- **Modelos em inglês não servem para PT-BR** — o achado mais robusto. GPT-2 e
+  DistilGPT-2 ficam com ROUGE ≈ 0 e similaridade semântica ~0.39 nos dois
+  corpora, gerando texto incoerente. Aqui a diferença **não** é ruído: os IC 95%
+  de ROUGE-1 (~[0.029, 0.045]) não chegam perto dos de BERTimbau/PTT5-summ
+  (~[0.155, 0.242]). O problema não é a abordagem gerativa em si, mas usar
+  modelos pré-treinados em inglês, sem ajuste para a tarefa em português.
 
 - **O corpus sintético inflou os resultados.** Comparando §6.1 e §6.2, todos os
   scores caem fortemente ao sair do corpus sintético para artigos reais — o
@@ -140,13 +171,19 @@ todo o corpus, em CPU. Figuras geradas por `experiments/gerar_figuras.py`.)
   redigido pelo próprio autor favorece artificialmente os modelos. **Este é o
   principal argumento a favor de avaliar em dados reais.**
 
-- **No corpus real, extrativo e abstrativo empatam — a vantagem do PTT5-summ não
-  se sustenta.** No sintético, o PTT5-summ dominava todas as métricas ROUGE. Nos
-  artigos reais o quadro é misto e essencialmente um empate: ROUGE-1 praticamente
-  idêntico (0.1981 vs 0.1978), o BERTimbau **vence** em ROUGE-2 (0.0451 vs
-  0.0373), e o PTT5-summ vence em ROUGE-L (0.1304 vs 0.1173) e na similaridade
-  semântica (0.8030 vs 0.7727). Com n = 30 e sem teste estatístico, **não há base
-  para declarar um vencedor em ROUGE-1**.
+- **No corpus real, extrativo e abstrativo são indistinguíveis — a vantagem do
+  PTT5-summ não se sustenta.** No sintético, o PTT5-summ dominava todas as
+  métricas ROUGE. Nos artigos reais, a análise de incerteza (§6.1.1) mostra que
+  o IC 95% da diferença pareada **inclui zero nas quatro métricas** (ROUGE-1/2/L
+  e semântica). Nenhum dos dois pode ser declarado superior ao outro com n = 30 —
+  nem mesmo nas métricas em que as médias diferem (ROUGE-2 e ROUGE-L), cujas
+  diferenças estão dentro do ruído amostral.
+
+- **O PTT5-summ é mais consistente.** Embora as médias empatem, o desvio-padrão
+  do PTT5-summ é sensivelmente menor que o do BERTimbau (ROUGE-1: 0.0895 vs
+  0.1251; semântica: 0.0879 vs 0.1420): o sumarizador abstrativo varia menos
+  entre artigos. Observação descritiva — a diferença de dispersão em si não foi
+  testada.
 
 - **Limitação estrutural: truncamento da entrada.** Os sumarizadores truncam a
   entrada em 512 tokens, mas os artigos reais têm mediana de ~4.815 palavras. Ou
@@ -158,8 +195,9 @@ todo o corpus, em CPU. Figuras geradas por `experiments/gerar_figuras.py`.)
 
 - **Viés potencial na métrica semântica.** O `SemanticEvaluator` usa o mesmo
   encoder (BERTimbau) que gera os resumos extrativos, o que poderia favorecer o
-  BERTimbau. Vale notar que, mesmo assim, o PTT5-summ **supera** o BERTimbau na
-  métrica semântica no corpus real — o que reforça esse resultado específico.
+  BERTimbau. No corpus real a média do PTT5-summ é maior (0.8030 vs 0.7727), mas
+  a diferença inclui zero no IC 95% (§6.1.1), então **não** se pode concluir
+  superioridade — nem medir o efeito desse viés com os dados atuais.
 
 - **ROUGE mede sobreposição léxica**, não qualidade semântica, e aqui não usa
   stemming para PT; por isso a métrica semântica complementar.
@@ -167,8 +205,10 @@ todo o corpus, em CPU. Figuras geradas por `experiments/gerar_figuras.py`.)
 - **Custo.** No corpus real, BERTimbau (150 s) e PTT5-summ (173 s) têm custo
   parecido; os modelos em inglês são mais rápidos, mas inúteis para a tarefa.
 
-- **Sem significância estatística.** n = 30, sem intervalo de confiança nem teste
-  de hipótese — diferenças pequenas não devem ser interpretadas como superioridade.
+- **Incerteza reportada, mas sem teste de hipótese.** A §6.1.1 traz IC 95% por
+  bootstrap (descritivo). Não foi executado teste de hipótese formal, e n = 30 é
+  pequeno: o corpus atual não tem poder para detectar diferenças pequenas entre
+  BERTimbau e PTT5-summ. Aumentar n é o caminho para decidir esse empate.
 
 - **Ambiente CPU**; LLaMA-2 fora desta rodada.
 
