@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 import time
 import os
@@ -10,94 +11,101 @@ from summarization.model_loader import SUPPORTED_MODELS
 from utils import set_seed, SEED_PADRAO
 
 
-def run_generative_model(model_name: str, texts: list[str]) -> tuple[list[str], float]:
+def _hash_corpus(texts: list[str]) -> str:
+    """Identifica o corpus para invalidar checkpoints de outra execucao."""
+    h = hashlib.sha256()
+    for t in texts:
+        h.update(t.encode("utf-8", "replace"))
+    return h.hexdigest()[:16]
+
+
+def _ckpt_path(checkpoint_dir: Optional[str], model_name: str) -> Optional[str]:
+    if not checkpoint_dir:
+        return None
+    return os.path.join(checkpoint_dir, f"ckpt_{model_name.replace('/', '_')}.json")
+
+
+def _carregar_ckpt(path, corpus_hash):
+    if not path or not os.path.exists(path):
+        return [], []
+    try:
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+    except Exception:
+        return [], []
+    if d.get("corpus_hash") != corpus_hash:
+        return [], []  # checkpoint de outro corpus: ignora
+    return d.get("summaries", []), d.get("tempos", [])
+
+
+def _salvar_ckpt(path, corpus_hash, summaries, tempos):
+    if not path:
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"corpus_hash": corpus_hash, "summaries": summaries,
+                   "tempos": tempos}, f, ensure_ascii=False)
+    os.replace(tmp, path)  # escrita atomica: nao corrompe se morrer no meio
+
+
+def _fabricar_resumidor(model_name: str, config: dict):
+    """Devolve uma funcao resumir(texto) -> str para o tipo do modelo."""
+    tipo = config.get("type")
+    if tipo == "extractive":
+        from summarization.extractive_summarizer import ExtractiveSummarizer
+        s = ExtractiveSummarizer()
+        return lambda t: s.generate_summary(t)
+    if tipo == "seq2seq":
+        from summarization.seq2seq_summarizer import Seq2SeqSummarizer
+        s = Seq2SeqSummarizer(model_name=model_name)
+        return lambda t: s.generate_summary(t)
+    if tipo == "seq2seq_chunk":
+        from summarization.chunked_summarizer import ChunkedSeq2SeqSummarizer
+        s = ChunkedSeq2SeqSummarizer(model_name=model_name)
+        return lambda t: s.generate_summary(t)
     from summarization.summarizer import Summarizer
+    s = Summarizer(model_name=model_name)
+    # decodificacao deterministica (greedy) para reprodutibilidade
+    return lambda t: s.generate_summary(t, do_sample=False)
+
+
+def gerar_resumos(model_name, config, texts, checkpoint_dir=None):
+    """Gera os resumos de um modelo, com checkpoint por artigo.
+
+    Rodadas longas (ex.: chunking) podem ser interrompidas; o checkpoint
+    permite retomar de onde parou em vez de perder tudo. O tempo reportado
+    e load + soma dos tempos de geracao (exclui pausas entre execucoes).
+    """
+    corpus_hash = _hash_corpus(texts)
+    path = _ckpt_path(checkpoint_dir, model_name)
+    summaries, tempos = _carregar_ckpt(path, corpus_hash)
+
+    if len(summaries) >= len(texts):
+        print(f"\n  [ckpt] {model_name}: {len(texts)}/{len(texts)} ja concluido — "
+              f"reaproveitando")
+        return summaries[:len(texts)], float(sum(tempos[:len(texts)]))
+
+    if summaries:
+        print(f"\n  [ckpt] {model_name}: retomando de {len(summaries)}/{len(texts)}")
 
     print(f"\n  Carregando {model_name}...")
-    start = time.time()
-    summarizer = Summarizer(model_name=model_name)
-    load_time = time.time() - start
+    t0 = time.time()
+    resumir = _fabricar_resumidor(model_name, config)
+    load_time = time.time() - t0
     print(f"  Modelo carregado em {load_time:.1f}s")
 
-    summaries = []
-    for i, text in enumerate(texts):
+    for i in range(len(summaries), len(texts)):
         print(f"  Gerando resumo {i + 1}/{len(texts)}...", end=" ", flush=True)
         t0 = time.time()
-        # decodificacao deterministica (greedy) para reprodutibilidade
-        summary = summarizer.generate_summary(text, do_sample=False)
-        elapsed = time.time() - t0
-        print(f"({elapsed:.1f}s)")
-        summaries.append(summary)
+        resumo = resumir(texts[i])
+        dt = time.time() - t0
+        print(f"({dt:.1f}s)")
+        summaries.append(resumo)
+        tempos.append(dt)
+        _salvar_ckpt(path, corpus_hash, summaries, tempos)
 
-    total_time = time.time() - start
-    return summaries, total_time
-
-
-def run_seq2seq_model(model_name: str, texts: list[str]) -> tuple[list[str], float]:
-    from summarization.seq2seq_summarizer import Seq2SeqSummarizer
-
-    print(f"\n  Carregando {model_name}...")
-    start = time.time()
-    summarizer = Seq2SeqSummarizer(model_name=model_name)
-    load_time = time.time() - start
-    print(f"  Modelo carregado em {load_time:.1f}s")
-
-    summaries = []
-    for i, text in enumerate(texts):
-        print(f"  Gerando resumo {i + 1}/{len(texts)}...", end=" ", flush=True)
-        t0 = time.time()
-        # beam search deterministico (do_sample=False)
-        summary = summarizer.generate_summary(text)
-        elapsed = time.time() - t0
-        print(f"({elapsed:.1f}s)")
-        summaries.append(summary)
-
-    total_time = time.time() - start
-    return summaries, total_time
-
-
-def run_seq2seq_chunk_model(model_name: str, texts: list[str]) -> tuple[list[str], float]:
-    from summarization.chunked_summarizer import ChunkedSeq2SeqSummarizer
-
-    print(f"\n  Carregando {model_name} (chunking hierarquico)...")
-    start = time.time()
-    summarizer = ChunkedSeq2SeqSummarizer(model_name=model_name)
-    load_time = time.time() - start
-    print(f"  Modelo carregado em {load_time:.1f}s")
-
-    summaries = []
-    for i, text in enumerate(texts):
-        print(f"  Gerando resumo {i + 1}/{len(texts)}...", end=" ", flush=True)
-        t0 = time.time()
-        summary = summarizer.generate_summary(text)
-        elapsed = time.time() - t0
-        print(f"({elapsed:.1f}s)")
-        summaries.append(summary)
-
-    total_time = time.time() - start
-    return summaries, total_time
-
-
-def run_extractive_model(texts: list[str]) -> tuple[list[str], float]:
-    from summarization.extractive_summarizer import ExtractiveSummarizer
-
-    print("\n  Carregando bertimbau...")
-    start = time.time()
-    summarizer = ExtractiveSummarizer()
-    load_time = time.time() - start
-    print(f"  Modelo carregado em {load_time:.1f}s")
-
-    summaries = []
-    for i, text in enumerate(texts):
-        print(f"  Gerando resumo {i + 1}/{len(texts)}...", end=" ", flush=True)
-        t0 = time.time()
-        summary = summarizer.generate_summary(text)
-        elapsed = time.time() - t0
-        print(f"({elapsed:.1f}s)")
-        summaries.append(summary)
-
-    total_time = time.time() - start
-    return summaries, total_time
+    return summaries, load_time + float(sum(tempos))
 
 
 def parse_args() -> argparse.Namespace:
@@ -124,6 +132,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=SEED_PADRAO,
         help="Seed para reprodutibilidade",
+    )
+    parser.add_argument(
+        "--checkpoint-dir",
+        type=str,
+        default=None,
+        help="Diretorio de checkpoints por artigo (permite retomar rodadas longas)",
     )
     parser.add_argument(
         "--corpus",
@@ -173,15 +187,9 @@ def main():
         print("=" * 60)
 
         model_config = SUPPORTED_MODELS.get(model_name, {})
-
-        if model_config.get("type") == "extractive":
-            summaries, total_time = run_extractive_model(texts)
-        elif model_config.get("type") == "seq2seq":
-            summaries, total_time = run_seq2seq_model(model_name, texts)
-        elif model_config.get("type") == "seq2seq_chunk":
-            summaries, total_time = run_seq2seq_chunk_model(model_name, texts)
-        else:
-            summaries, total_time = run_generative_model(model_name, texts)
+        summaries, total_time = gerar_resumos(
+            model_name, model_config, texts, checkpoint_dir=args.checkpoint_dir
+        )
 
         rouge_scores = rouge_evaluator.evaluate_batch(references, summaries)
 
