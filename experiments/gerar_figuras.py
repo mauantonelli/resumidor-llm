@@ -29,6 +29,7 @@ ROTULOS_MODELO = {
     "gpt2": "GPT-2",
     "distilgpt2": "DistilGPT-2",
     "bertimbau": "BERTimbau",
+    "ptt5-summ": "PTT5-summ",
 }
 
 

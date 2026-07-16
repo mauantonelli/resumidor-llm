@@ -1,7 +1,12 @@
 from typing import Optional, Tuple, Any
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import (
+    AutoModelForCausalLM,
+    AutoModelForSeq2SeqLM,
+    AutoTokenizer,
+    BitsAndBytesConfig,
+)
 
 
 SUPPORTED_MODELS = {
@@ -23,6 +28,11 @@ SUPPORTED_MODELS = {
     "bertimbau": {
         "model_id": "neuralmind/bert-base-portuguese-cased",
         "type": "extractive",
+        "quantize": False,
+    },
+    "ptt5-summ": {
+        "model_id": "recogna-nlp/ptt5-base-summ",
+        "type": "seq2seq",
         "quantize": False,
     },
 }
@@ -60,6 +70,13 @@ class ModelLoader:
                 f"Modelo '{model_name}' é extrativo. "
                 f"Use ExtractiveSummarizer para este modelo."
             )
+
+        if config["type"] == "seq2seq":
+            tokenizer = AutoTokenizer.from_pretrained(model_id)
+            model = AutoModelForSeq2SeqLM.from_pretrained(model_id)
+            model = model.to(self.device)
+            model.eval()
+            return model, tokenizer
 
         tokenizer = AutoTokenizer.from_pretrained(model_id)
 

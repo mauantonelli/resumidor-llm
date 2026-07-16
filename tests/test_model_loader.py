@@ -8,8 +8,15 @@ from summarization.model_loader import ModelLoader, SUPPORTED_MODELS
 
 
 def test_supported_models_keys():
-    expected = {"gpt2", "distilgpt2", "llama2", "bertimbau"}
+    expected = {"gpt2", "distilgpt2", "llama2", "bertimbau", "ptt5-summ"}
     assert set(SUPPORTED_MODELS.keys()) == expected
+
+
+def test_get_model_info_ptt5_summ():
+    loader = ModelLoader(device="cpu")
+    info = loader.get_model_info("ptt5-summ")
+    assert info["model_id"] == "recogna-nlp/ptt5-base-summ"
+    assert info["type"] == "seq2seq"
 
 
 def test_list_available_models():

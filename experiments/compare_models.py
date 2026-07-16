@@ -33,6 +33,29 @@ def run_generative_model(model_name: str, texts: list[str]) -> tuple[list[str], 
     return summaries, total_time
 
 
+def run_seq2seq_model(model_name: str, texts: list[str]) -> tuple[list[str], float]:
+    from summarization.seq2seq_summarizer import Seq2SeqSummarizer
+
+    print(f"\n  Carregando {model_name}...")
+    start = time.time()
+    summarizer = Seq2SeqSummarizer(model_name=model_name)
+    load_time = time.time() - start
+    print(f"  Modelo carregado em {load_time:.1f}s")
+
+    summaries = []
+    for i, text in enumerate(texts):
+        print(f"  Gerando resumo {i + 1}/{len(texts)}...", end=" ", flush=True)
+        t0 = time.time()
+        # beam search deterministico (do_sample=False)
+        summary = summarizer.generate_summary(text)
+        elapsed = time.time() - t0
+        print(f"({elapsed:.1f}s)")
+        summaries.append(summary)
+
+    total_time = time.time() - start
+    return summaries, total_time
+
+
 def run_extractive_model(texts: list[str]) -> tuple[list[str], float]:
     from summarization.extractive_summarizer import ExtractiveSummarizer
 
@@ -120,6 +143,8 @@ def main():
 
         if model_config.get("type") == "extractive":
             summaries, total_time = run_extractive_model(texts)
+        elif model_config.get("type") == "seq2seq":
+            summaries, total_time = run_seq2seq_model(model_name, texts)
         else:
             summaries, total_time = run_generative_model(model_name, texts)
 

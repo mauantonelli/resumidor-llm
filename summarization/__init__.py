@@ -2,3 +2,4 @@ from summarization.model_loader import ModelLoader
 from summarization.summarizer import Summarizer
 from summarization.preprocessing import TextPreprocessor
 from summarization.extractive_summarizer import ExtractiveSummarizer
+from summarization.seq2seq_summarizer import Seq2SeqSummarizer

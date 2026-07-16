@@ -84,6 +84,12 @@ def create_summarizer(model_name: str, args):
     if model_config["type"] == "extractive":
         from summarization.extractive_summarizer import ExtractiveSummarizer
         return ExtractiveSummarizer(num_sentences=args.num_sentences)
+    elif model_config["type"] == "seq2seq":
+        from summarization.seq2seq_summarizer import Seq2SeqSummarizer
+        return Seq2SeqSummarizer(
+            model_name=model_name,
+            max_summary_length=args.max_length,
+        )
     else:
         from summarization.summarizer import Summarizer
         return Summarizer(
@@ -127,13 +133,14 @@ def main():
         print(f"... ({len(input_text)} caracteres no total)")
 
     model_config = SUPPORTED_MODELS[args.model]
-    if model_config["type"] == "extractive":
-        summary = summarizer.generate_summary(input_text)
-    else:
+    if model_config["type"] == "causal":
         summary = summarizer.generate_summary(
             input_text,
             temperature=args.temperature,
         )
+    else:
+        # extrativo e seq2seq nao usam temperatura
+        summary = summarizer.generate_summary(input_text)
 
     print("\n" + "=" * 60)
     print("RESUMO GERADO:")
