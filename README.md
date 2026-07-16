@@ -76,6 +76,18 @@ python main.py --model bertimbau        # sumarização extrativa
 python main.py --list-models            # lista modelos disponíveis
 ```
 
+### Coletar o corpus científico real (SciELO)
+
+```bash
+python -m data.coletar_scielo --n 30 --out data/processed/corpus_scielo.json
+```
+
+Monta um corpus de artigos científicos **reais** em PT-BR do SciELO Brasil:
+entrada = corpo do artigo (JATS `<body>`), referência = resumo do autor
+(JATS `<abstract>`). Distribui a coleta entre periódicos de áreas variadas e
+remove do corpo qualquer réplica do resumo (evita vazamento da referência).
+A saída fica em `data/processed/` (fora do versionamento).
+
 ### Comparação entre modelos
 
 ```bash
@@ -87,6 +99,13 @@ python -m experiments.compare_models \
 # gerar tabela e figuras a partir do JSON
 python -m experiments.gerar_figuras \
     --input experiments/results/comparacao.json --outdir experiments/results
+
+# rodar sobre o corpus científico real (SciELO) em vez do sintético
+python -m experiments.compare_models \
+    --models gpt2 distilgpt2 bertimbau ptt5-summ \
+    --semantic --seed 42 \
+    --corpus data/processed/corpus_scielo.json \
+    --output experiments/results/comparacao_scielo.json
 ```
 
 Roda cada modelo sobre o corpus de avaliação, calcula ROUGE (e, com `--semantic`,
