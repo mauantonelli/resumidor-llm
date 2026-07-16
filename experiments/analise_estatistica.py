@@ -21,6 +21,7 @@ Reproduzivel: bootstrap com seed fixa.
 
 import argparse
 import json
+import os
 
 import numpy as np
 
@@ -154,6 +155,9 @@ def main():
             print(f"[aviso] modelos {a}/{b} nao encontrados nos resultados")
 
     if args.out:
+        out_dir = os.path.dirname(args.out)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
         with open(args.out, "w", encoding="utf-8") as f:
             json.dump(analise, f, ensure_ascii=False, indent=2)
         print(f"\nAnalise salva em: {args.out}")
