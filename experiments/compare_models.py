@@ -103,6 +103,12 @@ def parse_args() -> argparse.Namespace:
         default=SEED_PADRAO,
         help="Seed para reprodutibilidade",
     )
+    parser.add_argument(
+        "--corpus",
+        type=str,
+        default=None,
+        help="Caminho para um corpus JSON (padrao: corpus sintetico embutido)",
+    )
     return parser.parse_args()
 
 
@@ -116,7 +122,12 @@ def main():
         models_to_test = ["gpt2", "distilgpt2", "bertimbau"]
 
     corpus = Corpus()
-    texts, references = corpus.get_texts_and_references()
+    if args.corpus:
+        samples = corpus.load_from_json(args.corpus)
+        texts, references = corpus.get_texts_and_references(samples)
+        print(f"Corpus externo: {args.corpus} ({len(texts)} textos)")
+    else:
+        texts, references = corpus.get_texts_and_references()
     rouge_evaluator = SummaryEvaluator()
     semantic_evaluator = None
 
