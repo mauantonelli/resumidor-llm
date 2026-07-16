@@ -46,9 +46,26 @@ pytest tests/
 ## Arquitetura (rápido)
 
 - `summarization/` — `TextPreprocessor` (limpeza/refs/truncamento) →
-  `ModelLoader` (dict `SUPPORTED_MODELS`, tipos causal/extractive/seq2seq) →
-  `Summarizer` (causal, GPT-2/DistilGPT-2), `ExtractiveSummarizer` (BERTimbau,
-  similaridade de embeddings) e `Seq2SeqSummarizer` (PTT5-summ, abstrativo PT).
+  `ModelLoader` (dict `SUPPORTED_MODELS`, tipos `causal`/`extractive`/`seq2seq`/
+  `seq2seq_chunk`) → `Summarizer` (causal, GPT-2/DistilGPT-2),
+  `ExtractiveSummarizer` (BERTimbau, similaridade de embeddings),
+  `Seq2SeqSummarizer` (PTT5-summ, abstrativo PT) e `ChunkedSeq2SeqSummarizer`
+  (PTT5-summ com chunking map-reduce).
+- `data/coletar_scielo.py` — coletor do corpus científico real (SciELO):
+  corpo do artigo → abstract do autor, com limpeza anti-vazamento.
+- `experiments/analise_estatistica.py` — IC 95% (bootstrap) por amostra e da
+  diferença pareada. **Use antes de afirmar que um modelo é melhor que outro.**
+
+### Cuidados aprendidos (não repetir)
+
+- **Cobertura assimétrica**: `ExtractiveSummarizer` lê o artigo inteiro; os
+  demais truncam em 512 tokens. Ao comparar, considere esse confundidor.
+- **Rodadas longas morrem**: use sempre `--checkpoint-dir` (checkpoint por
+  artigo, retomada automática) e `nohup` para runs de horas. O chunking custa
+  ~6 min/artigo em CPU (até 23 min nos artigos de ~10k palavras).
+- **Nunca afirme "modelo X vence"** sem olhar o IC da diferença — três
+  afirmações desse tipo já foram desmentidas pelo bootstrap.
+- `argparse` no Python 3.14 rejeita `%` em `help=` (use `%%`).
 - `evaluation/metrics.py` — `SummaryEvaluator` (ROUGE) e `SemanticEvaluator`
   (similaridade por embeddings BERTimbau).
 - `experiments/compare_models.py` — harness CLI que roda os modelos sobre o
