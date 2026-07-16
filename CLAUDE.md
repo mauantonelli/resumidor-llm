@@ -46,8 +46,9 @@ pytest tests/
 ## Arquitetura (rápido)
 
 - `summarization/` — `TextPreprocessor` (limpeza/refs/truncamento) →
-  `ModelLoader` (dict `SUPPORTED_MODELS`) → `Summarizer` (gerativo) e
-  `ExtractiveSummarizer` (BERTimbau, similaridade de embeddings).
+  `ModelLoader` (dict `SUPPORTED_MODELS`, tipos causal/extractive/seq2seq) →
+  `Summarizer` (causal, GPT-2/DistilGPT-2), `ExtractiveSummarizer` (BERTimbau,
+  similaridade de embeddings) e `Seq2SeqSummarizer` (PTT5-summ, abstrativo PT).
 - `evaluation/metrics.py` — `SummaryEvaluator` (ROUGE) e `SemanticEvaluator`
   (similaridade por embeddings BERTimbau).
 - `experiments/compare_models.py` — harness CLI que roda os modelos sobre o
@@ -61,23 +62,27 @@ pytest tests/
 ## Estado e pendências (jul/2026)
 
 - Reparos concluídos: imports do RAG para LangChain 1.x, bug de cópia rasa no
-  corpus, dependências travadas, matplotlib adicionado. Suíte: **38 passando**.
-- **A avaliação comparativa nunca foi executada de ponta a ponta.** Não há
-  nenhum número gerado no repositório. Executar isso é o próximo grande passo —
-  e depende das decisões metodológicas abaixo.
+  corpus, dependências travadas, matplotlib, overflow de posições do GPT-2 no RAG.
+- Reprodutibilidade: `utils.set_seed(42)` + decodificação determinística.
+- **Avaliação comparativa executada** (seed 42, CPU): GPT-2, DistilGPT-2,
+  BERTimbau e PTT5-summ. PTT5-summ lidera em ROUGE; GPT-2/DistilGPT-2 (inglês)
+  vão mal em PT. Números e figuras em `experiments/results/` (gitignored);
+  metodologia em `docs/metodologia_rascunho.md`. Suíte: **39 passando**.
 
-### Decisões metodológicas em aberto (perguntar antes de executar o experimento)
+### Decisões metodológicas já tomadas pelo autor (07/2026)
 
-1. **Corpus**: manter as 10 amostras sintéticas ou trocar por artigos
-   científicos reais em PT-BR com resumos de referência?
-2. **LLaMA-2**: fora por padrão (gated + exige GPU/CUDA). Incluir depende de
-   acesso/hardware.
-3. **Determinismo**: não há seeds; o gerativo usa `do_sample=True, temperature=0.7`
-   → não reproduzível. Definir seed e/ou decodificação determinística
-   (greedy/beam) para a avaliação.
-4. **Comparação extrativo × gerativo**: BERTimbau (extrativo) vs GPT-2/DistilGPT-2
-   (gerativo) medidos por ROUGE contra referências abstrativas — assimetria a
-   registrar como limitação ou repensar o baseline.
+1. **Corpus**: rodar com as 10 amostras sintéticas por ora (limitação registrada).
+2. **LLaMA-2**: fora (gated + GPU); trabalho futuro.
+3. **Determinismo**: seed 42 + greedy (causal) / beam (seq2seq).
+4. **Extrativo × gerativo**: comparação mantida, assimetria registrada.
+5. **Modelo PT-BR**: adicionado PTT5-summ (`recogna-nlp/ptt5-base-summ`).
+
+### Ainda em aberto (perguntar antes)
+
+- Trocar o corpus sintético por artigos reais PT-BR (rodada final).
+- Escolher um gerador PT-BR coerente para o **RAG** (hoje ainda usa GPT-2, que
+  produz texto degenerado; a recuperação já funciona).
+- Rodar/salvar o notebook com as saídas reais.
 
 ## Convenções de código
 

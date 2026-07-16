@@ -9,8 +9,8 @@ assistente institucional baseado em RAG.
 
 O projeto tem três frentes:
 
-1. **Sumarização** — GPT-2 e DistilGPT-2 (gerativos/abstrativos) e BERTimbau
-   (extrativo, por similaridade de embeddings).
+1. **Sumarização** — GPT-2 e DistilGPT-2 (gerativos), BERTimbau (extrativo, por
+   similaridade de embeddings) e PTT5-summ (abstrativo ajustado para PT).
 2. **Avaliação comparativa** — ROUGE (ROUGE-1/2/L) e similaridade semântica,
    comparando os modelos sobre um corpus com resumos de referência.
 3. **Assistente RAG** — perguntas e respostas sobre documentos institucionais do
@@ -24,11 +24,14 @@ O projeto tem três frentes:
 - ✅ Ambiente reproduzível com dependências travadas (Python 3.14).
 - ✅ Módulos de sumarização e avaliação importam e passam nos testes.
 - ✅ Assistente RAG corrigido para a API 1.x do LangChain.
-- ✅ Suíte de testes: **38 passando**.
-- ⏳ **A avaliação comparativa entre os modelos ainda NÃO FOI EXECUTADA de ponta a
-  ponta.** Não existe nenhum resultado numérico gerado no repositório — o notebook
-  `notebooks/analise_comparativa.ipynb` contém o código mas não tem saídas salvas.
-  Números só serão adicionados após execução real.
+- ✅ Suíte de testes: **39 passando**.
+- ✅ **Avaliação comparativa executada** (GPT-2, DistilGPT-2, BERTimbau, PTT5-summ;
+  seed 42, CPU). Resultados, tabela e figuras em `experiments/results/` (gerados
+  localmente, fora do versionamento). Metodologia e números em
+  `docs/metodologia_rascunho.md`. Resumo: **PTT5-summ** obteve o melhor ROUGE;
+  GPT-2/DistilGPT-2 (pré-treino em inglês) tiveram desempenho fraco em PT-BR.
+- ℹ️ O notebook `notebooks/analise_comparativa.ipynb` contém o código de análise,
+  mas ainda sem saídas salvas (o caminho reprodutível é via `experiments/`).
 
 > **Reprodutibilidade:** a geração dos sumarizadores gerativos usa amostragem
 > (`do_sample=True`), portanto **ainda não é determinística** — a política de
@@ -77,9 +80,13 @@ python main.py --list-models            # lista modelos disponíveis
 
 ```bash
 python -m experiments.compare_models \
-    --models gpt2 distilgpt2 bertimbau \
-    --semantic \
-    --output resultados.json
+    --models gpt2 distilgpt2 bertimbau ptt5-summ \
+    --semantic --seed 42 \
+    --output experiments/results/comparacao.json
+
+# gerar tabela e figuras a partir do JSON
+python -m experiments.gerar_figuras \
+    --input experiments/results/comparacao.json --outdir experiments/results
 ```
 
 Roda cada modelo sobre o corpus de avaliação, calcula ROUGE (e, com `--semantic`,
