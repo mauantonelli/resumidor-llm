@@ -7,6 +7,7 @@ from typing import Optional
 from data.corpus import Corpus
 from evaluation.metrics import SummaryEvaluator, SemanticEvaluator
 from summarization.model_loader import SUPPORTED_MODELS
+from utils import set_seed, SEED_PADRAO
 
 
 def run_generative_model(model_name: str, texts: list[str]) -> tuple[list[str], float]:
@@ -22,7 +23,8 @@ def run_generative_model(model_name: str, texts: list[str]) -> tuple[list[str], 
     for i, text in enumerate(texts):
         print(f"  Gerando resumo {i + 1}/{len(texts)}...", end=" ", flush=True)
         t0 = time.time()
-        summary = summarizer.generate_summary(text)
+        # decodificacao deterministica (greedy) para reprodutibilidade
+        summary = summarizer.generate_summary(text, do_sample=False)
         elapsed = time.time() - t0
         print(f"({elapsed:.1f}s)")
         summaries.append(summary)
@@ -72,11 +74,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Incluir avaliacao de similaridade semantica",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=SEED_PADRAO,
+        help="Seed para reprodutibilidade",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+    set_seed(args.seed)
 
     if args.models:
         models_to_test = args.models
