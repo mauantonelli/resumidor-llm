@@ -1,13 +1,13 @@
 import os
 from typing import Optional
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import (
     DirectoryLoader,
     TextLoader,
     PyPDFLoader,
 )
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 
 class DocumentLoader:

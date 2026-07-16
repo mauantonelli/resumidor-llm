@@ -1,6 +1,6 @@
 from typing import Optional
 
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 from rag_assistant.vector_store import VectorStore
 
