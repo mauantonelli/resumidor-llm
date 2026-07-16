@@ -30,3 +30,6 @@ data/processed/*.json
 
 *.log
 *.tmp
+
+# Resultados de execucao (nao versionar — gerar localmente)
+experiments/results/
