@@ -128,52 +128,74 @@ def _montar_corpo(paras, abstract, title):
     return " ".join(limpos)
 
 
-def coletar(n_alvo=30, min_palavras_corpo=200, min_palavras_abstract=30, pausa=0.7):
-    coletados = []
-    vistos = set()
-    for issn, nome in JORNAIS_PT.items():
-        if len(coletados) >= n_alvo:
+def _coletar_jornal(issn, nome, alvo, vistos, min_palavras_corpo, min_palavras_abstract, pausa):
+    """Coleta ate `alvo` artigos validos de um periodico."""
+    bucket = []
+    try:
+        pids = listar_pids(issn, limit=120)
+    except Exception as e:
+        print(f"  [skip issn {issn}] listar_pids falhou: {e}")
+        return bucket
+    for pid in pids:
+        if len(bucket) >= alvo:
             break
-        try:
-            pids = listar_pids(issn, limit=80)
-        except Exception as e:
-            print(f"  [skip issn {issn}] listar_pids falhou: {e}")
+        if pid in vistos:
             continue
-        for pid in pids:
-            if len(coletados) >= n_alvo:
-                break
-            if pid in vistos:
+        vistos.add(pid)
+        try:
+            meta = meta_artigo(pid)
+            if not idioma_pt(meta):
                 continue
-            vistos.add(pid)
-            try:
-                meta = meta_artigo(pid)
-                if not idioma_pt(meta):
-                    continue
-                xml_url = resolver_xml(pid)
-                if "/j/" not in xml_url:
-                    continue  # sem versao XML no site novo
-                _, xml = _get(xml_url)
-                parsed = parse_jats(xml)
-                if parsed is None:
-                    continue
-                title, abstract, corpo = parsed
-                if len(abstract.split()) < min_palavras_abstract:
-                    continue
-                if len(corpo.split()) < min_palavras_corpo:
-                    continue
-                coletados.append({
-                    "id": pid,
-                    "title": title,
-                    "text": corpo,
-                    "reference_summary": abstract,
-                    "source": {"journal": nome, "issn": issn, "url": xml_url.split("?")[0]},
-                })
-                print(f"  [{len(coletados)}/{n_alvo}] {nome}: {title[:60]} "
-                      f"(corpo {len(corpo.split())}p / abs {len(abstract.split())}p)")
-            except Exception as e:
-                print(f"  [erro pid {pid}] {type(e).__name__}: {e}")
-            finally:
-                time.sleep(pausa)
+            xml_url = resolver_xml(pid)
+            if "/j/" not in xml_url:
+                continue  # sem versao XML no site novo
+            _, xml = _get(xml_url)
+            parsed = parse_jats(xml)
+            if parsed is None:
+                continue
+            title, abstract, corpo = parsed
+            if len(abstract.split()) < min_palavras_abstract:
+                continue
+            if len(corpo.split()) < min_palavras_corpo:
+                continue
+            bucket.append({
+                "id": pid,
+                "title": title,
+                "text": corpo,
+                "reference_summary": abstract,
+                "source": {"journal": nome, "issn": issn, "url": xml_url.split("?")[0]},
+            })
+            print(f"  [{nome}] +{len(bucket)}: {title[:55]} "
+                  f"(corpo {len(corpo.split())}p / abs {len(abstract.split())}p)")
+        except Exception as e:
+            print(f"  [erro pid {pid}] {type(e).__name__}: {e}")
+        finally:
+            time.sleep(pausa)
+    return bucket
+
+
+def coletar(n_alvo=30, min_palavras_corpo=200, min_palavras_abstract=30, pausa=0.7):
+    """Distribui a coleta entre periodicos (cota por jornal + round-robin)
+    para dar diversidade de dominio."""
+    n_jornais = len(JORNAIS_PT)
+    quota = -(-n_alvo // n_jornais) + 1  # ceil + folga
+    vistos = set()
+    baldes = {}
+    for issn, nome in JORNAIS_PT.items():
+        print(f"\n== {nome} (issn {issn}) ==")
+        baldes[issn] = _coletar_jornal(
+            issn, nome, quota, vistos, min_palavras_corpo, min_palavras_abstract, pausa
+        )
+
+    # round-robin ate n_alvo
+    coletados = []
+    filas = {k: list(v) for k, v in baldes.items()}
+    while len(coletados) < n_alvo and any(filas.values()):
+        for issn in list(filas):
+            if filas[issn]:
+                coletados.append(filas[issn].pop(0))
+                if len(coletados) >= n_alvo:
+                    break
     return coletados
 
 
